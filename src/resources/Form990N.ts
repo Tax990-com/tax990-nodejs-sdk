@@ -1,0 +1,130 @@
+import { v4 as uuidv4 } from 'uuid';
+import { HttpClient } from '../http/HttpClient';
+import type {
+  ApiResponse,
+  CreatePayload,
+  ErrorRecord,
+  GetSuccessRecord,
+  PDFResponse,
+  SuccessRecord,
+  TransmitErrorRecord,
+  TransmitPayload,
+  TransmitSuccessRecord,
+  ValidateErrorRecord,
+  ValidateSuccessRecord,
+} from '../types/form990n.types';
+
+export class Form990N {
+  constructor(private readonly http: HttpClient) {}
+
+  /**
+   * POST /v1/form990n/create
+   * Supports idempotency via optional idempotencyKey.
+   */
+  async create(
+    payload: CreatePayload,
+    idempotencyKey?: string,
+  ): Promise<ApiResponse<SuccessRecord, ErrorRecord>> {
+    const key = idempotencyKey ?? uuidv4();
+    return this.http.post('/v1/form990n/create', payload, {
+      'idempotency-key': key,
+    });
+  }
+
+  /** Alias for create — matches client.form990n.submit() */
+  async submit(
+    payload: CreatePayload,
+    idempotencyKey?: string,
+  ): Promise<ApiResponse<SuccessRecord, ErrorRecord>> {
+    return this.create(payload, idempotencyKey);
+  }
+
+  /** POST /v1/form990n/update */
+  async update(
+    payload: import('../types/form990n.types').UpdatePayload,
+  ): Promise<ApiResponse<SuccessRecord, ErrorRecord>> {
+    return this.http.post('/v1/form990n/update', payload);
+  }
+
+  /** GET /v1/form990n/get */
+  async get(params: {
+    SubmissionId: string;
+    RecordId?: string;
+  }): Promise<ApiResponse<GetSuccessRecord, ErrorRecord>> {
+    return this.http.get('/v1/form990n/get', {
+      SubmissionId: params.SubmissionId,
+      RecordId: params.RecordId,
+    });
+  }
+
+  /** GET /v1/form990n/list — at least one of SubmissionId or BusinessId required */
+  async list(params: {
+    SubmissionId?: string;
+    BusinessId?: string;
+  }): Promise<ApiResponse<GetSuccessRecord, ErrorRecord>> {
+    return this.http.get('/v1/form990n/list', {
+      SubmissionId: params.SubmissionId,
+      BusinessId: params.BusinessId,
+    });
+  }
+
+  /** DELETE /v1/form990n/delete */
+  async delete(params: {
+    SubmissionId: string;
+    RecordId?: string;
+  }): Promise<ApiResponse<SuccessRecord, ErrorRecord>> {
+    return this.http.delete('/v1/form990n/delete', {
+      SubmissionId: params.SubmissionId,
+      RecordId: params.RecordId,
+    });
+  }
+
+  /** GET /v1/form990n/validate */
+  async validate(params: {
+    SubmissionId: string;
+    RecordIds: string | string[];
+  }): Promise<ApiResponse<ValidateSuccessRecord, ValidateErrorRecord>> {
+    const RecordIds = Array.isArray(params.RecordIds)
+      ? params.RecordIds.join(',')
+      : params.RecordIds;
+    return this.http.get('/v1/form990n/validate', {
+      SubmissionId: params.SubmissionId,
+      RecordIds,
+    });
+  }
+
+  /** POST /v1/form990n/transmit */
+  async transmit(
+    payload: TransmitPayload,
+  ): Promise<ApiResponse<TransmitSuccessRecord, TransmitErrorRecord>> {
+    return this.http.post('/v1/form990n/transmit', payload);
+  }
+
+  /** GET /v1/form990n/getPDF */
+  async getPDF(params: {
+    SubmissionId: string;
+    RecordIds?: string | string[];
+  }): Promise<PDFResponse> {
+    const RecordIds = Array.isArray(params.RecordIds)
+      ? params.RecordIds.join(',')
+      : params.RecordIds;
+    return this.http.get('/v1/form990n/getPDF', {
+      SubmissionId: params.SubmissionId,
+      RecordIds,
+    });
+  }
+
+  /** GET /v1/form990n/status */
+  async status(params: {
+    SubmissionId: string;
+    RecordIds?: string | string[];
+  }): Promise<ApiResponse<SuccessRecord, ErrorRecord>> {
+    const RecordIds = Array.isArray(params.RecordIds)
+      ? params.RecordIds.join(',')
+      : params.RecordIds;
+    return this.http.get('/v1/form990n/status', {
+      SubmissionId: params.SubmissionId,
+      RecordIds,
+    });
+  }
+}
