@@ -39,9 +39,7 @@ export interface Form990NData {
   SequenceId: string | null;
   RecordId: string | null;
   TaxYr: string | null;
-  /** Format: YYYY-MM-DD */
   TaxPeriodBeginDt: string | null;
-  /** Format: YYYY-MM-DD */
   TaxPeriodEndDt: string | null;
   IsGrossReceiptsUnder50K: boolean | null;
   IsOrganizationTerminated: boolean | null;
@@ -60,6 +58,7 @@ export interface CreatePayload {
 
 export interface UpdatePayload {
   SubmissionId: string;
+  IsAllowPartialUpdates: boolean;
   Form990NRecords: Form990NRecord[];
 }
 
@@ -85,13 +84,21 @@ export type RecordStatus =
   | 'In-Progress'
   | 'Failed';
 
+export interface RejectionError {
+  ErrorCode: string | null;
+  ErrorMessage: string | null;
+}
+
 export interface SuccessRecord {
   SequenceId: string;
   RecordId: string;
   BusinessId: string;
   RecordStatus: RecordStatus;
+  ReturnNumber?: string;
+  RejectionErrors?: RejectionError[];
   CreatedTs: string;
   UpdatedTs: string;
+  Message?: string;
 }
 
 export interface ErrorRecord {

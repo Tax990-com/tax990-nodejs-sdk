@@ -4,8 +4,9 @@ import { TokenManager } from './auth/TokenManager';
 import { Form990N } from './resources/Form990N';
 import { Organization } from './resources/Organization';
 import { FilingStatus } from './resources/FilingStatus';
+import { Utility } from './resources/Utility';
+import { Nonprofits } from './resources/Nonprofits';
 import { Webhook } from './resources/Webhook';
-import { ApiKeys } from './resources/ApiKeys';
 import type { Tax990ClientConfig } from './types/auth.types';
 
 export type { Tax990ClientConfig };
@@ -13,32 +14,18 @@ export * from './types';
 export * from './errors';
 export * from './utils';
 
-const ENVIRONMENT_URLS: Record<'production' | 'sandbox', { apiUrl: string; oauthUrl: string }> = {
-  production: {
-    apiUrl: 'https://api.tax990.com',
-    oauthUrl: 'https://oauth.tax990.com',
-  },
-  sandbox: {
-    apiUrl: 'http://localhost:9005',
-    oauthUrl: 'http://localhost:4000',
-  },
-};
-
 export class Tax990Client {
   readonly form990n: Form990N;
   readonly organizations: Organization;
   readonly filingStatus: FilingStatus;
+  readonly utility: Utility;
+  readonly nonprofits: Nonprofits;
   readonly webhooks: Webhook;
-  readonly apiKeys: ApiKeys;
 
   constructor(config: Tax990ClientConfig) {
-    const env = config.environment ?? 'sandbox';
-    const defaults = ENVIRONMENT_URLS[env];
+    const apiUrl = config.apiUrl ?? process.env.TAX990_API_URL ?? '';
+    const oauthUrl = config.oauthUrl ?? process.env.TAX990_OAUTH_URL ?? '';
 
-    const oauthUrl = config.oauthUrl ?? defaults.oauthUrl;
-    const apiUrl = config.apiUrl ?? defaults.apiUrl;
-
-    // OAuth HTTP client (no bearer token — used for getting the token)
     const oauthHttp = new HttpClient({
       baseUrl: oauthUrl,
       timeout: config.timeout,
@@ -47,7 +34,6 @@ export class Tax990Client {
     const oauthClient = new OAuthClient(oauthHttp, config);
     const tokenManager = new TokenManager(oauthClient);
 
-    // API HTTP client (bearer token auto-attached)
     const apiHttp = new HttpClient({
       baseUrl: apiUrl,
       timeout: config.timeout,
@@ -57,7 +43,8 @@ export class Tax990Client {
     this.form990n = new Form990N(apiHttp);
     this.organizations = new Organization(apiHttp);
     this.filingStatus = new FilingStatus(apiHttp);
+    this.utility = new Utility(apiHttp);
+    this.nonprofits = new Nonprofits(apiHttp);
     this.webhooks = new Webhook();
-    this.apiKeys = new ApiKeys();
   }
 }

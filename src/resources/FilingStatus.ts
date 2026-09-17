@@ -1,7 +1,6 @@
 import { HttpClient } from '../http/HttpClient';
 import type { ApiResponse, SuccessRecord, ErrorRecord } from '../types/form990n.types';
 
-/** Wraps GET /v1/form990n/status */
 export class FilingStatus {
   constructor(private readonly http: HttpClient) {}
 

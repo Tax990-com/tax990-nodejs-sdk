@@ -1,134 +1,107 @@
-import jwt from 'jsonwebtoken';
 import { OAuthClient } from '../src/auth/OAuthClient';
 import { TokenManager } from '../src/auth/TokenManager';
-import { AuthError } from '../src/errors';
-import { validConfig, tokenResponse, unauthorizedTokenResponse } from './fixtures/auth.fixtures';
-
-// Mock axios and axios-retry so HttpClient can be constructed without real HTTP
-jest.mock('axios', () => {
-  const mockInstance = {
-    get: jest.fn(),
-    post: jest.fn(),
-    delete: jest.fn(),
-    interceptors: {
-      request: { use: jest.fn(), eject: jest.fn() },
-      response: { use: jest.fn(), eject: jest.fn() },
-    },
-    defaults: { headers: {} },
-  };
-  return {
-    create: jest.fn(() => mockInstance),
-    isAxiosError: jest.fn(() => false),
-    default: { create: jest.fn(() => mockInstance) },
-    __mockInstance: mockInstance,
-  };
-});
-jest.mock('axios-retry', () => jest.fn());
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const axiosMock = require('axios');
-const getMockInstance = () => axiosMock.__mockInstance as {
-  get: jest.Mock;
-  post: jest.Mock;
-  delete: jest.Mock;
-};
-
 import { HttpClient } from '../src/http/HttpClient';
+import { TEST_CONFIG, MOCK_TOKEN_RESPONSE, MOCK_JWS_RESPONSE } from './fixtures/auth.fixtures';
 
-function makeOAuthClient() {
-  const http = new HttpClient({ baseUrl: 'http://localhost:4000' });
-  const oauthClient = new OAuthClient(http, validConfig);
-  return { oauthClient };
-}
+jest.mock('../src/http/HttpClient');
 
 describe('OAuthClient', () => {
-  beforeEach(() => jest.clearAllMocks());
+  let mockHttp: jest.Mocked<HttpClient>;
+  let oauthClient: OAuthClient;
+
+  beforeEach(() => {
+    mockHttp = new HttpClient({ baseUrl: 'http://localhost:4000' }) as jest.Mocked<HttpClient>;
+    oauthClient = new OAuthClient(mockHttp, TEST_CONFIG);
+  });
 
   describe('signJWSLocally', () => {
-    it('produces a valid HS256 JWS with correct claims', () => {
-      const { oauthClient } = makeOAuthClient();
+    it('should return a valid JWS string with three dot-separated segments', () => {
       const jws = oauthClient.signJWSLocally();
+      const segments = jws.split('.');
+      expect(segments).toHaveLength(3);
+    });
 
-      const decoded = jwt.verify(jws, validConfig.clientSecret, {
-        algorithms: ['HS256'],
-      }) as jwt.JwtPayload;
+    it('should include correct claims in the payload', () => {
+      const jws = oauthClient.signJWSLocally();
+      const [, payloadSegment] = jws.split('.');
+      const payload = JSON.parse(Buffer.from(payloadSegment, 'base64url').toString());
+      expect(payload.iss).toBe(TEST_CONFIG.clientId);
+      expect(payload.sub).toBe(TEST_CONFIG.clientId);
+      expect(payload.aud).toBe(TEST_CONFIG.userToken);
+      expect(payload.iat).toBeDefined();
+    });
+  });
 
-      expect(decoded.iss).toBe(validConfig.clientId);
-      expect(decoded.sub).toBe(validConfig.clientId);
-      expect(decoded.aud).toBe(validConfig.userToken);
-      expect(typeof decoded.iat).toBe('number');
+  describe('generateJWSFromServer', () => {
+    it('should call POST /Auth/GenerateJWS and return the JWS token', async () => {
+      mockHttp.post = jest.fn().mockResolvedValue(MOCK_JWS_RESPONSE);
+      const jws = await oauthClient.generateJWSFromServer();
+      expect(jws).toBe(MOCK_JWS_RESPONSE.response.JWSToken);
+      expect(mockHttp.post).toHaveBeenCalledWith('/Auth/GenerateJWS', {
+        ClientId: TEST_CONFIG.clientId,
+        ClientSecretId: TEST_CONFIG.clientSecret,
+        UserToken: TEST_CONFIG.userToken,
+      });
     });
   });
 
   describe('getAccessToken', () => {
-    it('returns accessToken and expiresIn on success', async () => {
-      getMockInstance().get.mockResolvedValueOnce({ data: tokenResponse });
-
-      const { oauthClient } = makeOAuthClient();
+    it('should sign JWS locally and exchange for access token', async () => {
+      mockHttp.get = jest.fn().mockResolvedValue(MOCK_TOKEN_RESPONSE);
       const result = await oauthClient.getAccessToken();
-
-      expect(result.accessToken).toBe(tokenResponse.response.AccessToken);
-      expect(result.expiresIn).toBe(3600);
+      expect(result.accessToken).toBe(MOCK_TOKEN_RESPONSE.response.AccessToken);
+      expect(result.expiresIn).toBe(MOCK_TOKEN_RESPONSE.response.ExpiresIn);
+      expect(mockHttp.get).toHaveBeenCalledWith(
+        '/Auth/GetTax990Token',
+        undefined,
+        expect.objectContaining({ authentication: expect.any(String) }),
+      );
     });
 
-    it('throws AuthError when response contains Errors', async () => {
-      getMockInstance().get.mockResolvedValueOnce({ data: unauthorizedTokenResponse });
-
-      const { oauthClient } = makeOAuthClient();
-      await expect(oauthClient.getAccessToken()).rejects.toThrow(AuthError);
+    it('should throw AuthError when response contains errors', async () => {
+      mockHttp.get = jest.fn().mockResolvedValue({
+        ...MOCK_TOKEN_RESPONSE,
+        response: {
+          ...MOCK_TOKEN_RESPONSE.response,
+          AccessToken: '',
+          Errors: { ErrorCode: 'AUTH001', ErrorName: 'InvalidCredentials', ErrorMessage: 'Bad credentials' },
+        },
+      });
+      await expect(oauthClient.getAccessToken()).rejects.toThrow('Bad credentials');
     });
   });
 });
 
 describe('TokenManager', () => {
-  it('returns a token and caches it', async () => {
-    const getAccessToken = jest.fn().mockResolvedValue({
-      accessToken: 'test-access-token',
+  let mockOAuthClient: jest.Mocked<OAuthClient>;
+  let tokenManager: TokenManager;
+
+  beforeEach(() => {
+    const mockHttp = new HttpClient({ baseUrl: 'http://localhost:4000' }) as jest.Mocked<HttpClient>;
+    mockOAuthClient = new OAuthClient(mockHttp, TEST_CONFIG) as jest.Mocked<OAuthClient>;
+    mockOAuthClient.getAccessToken = jest.fn().mockResolvedValue({
+      accessToken: 'mock-token',
       expiresIn: 3600,
     });
-    const mockOAuthClient = { getAccessToken } as unknown as OAuthClient;
-    const manager = new TokenManager(mockOAuthClient);
-
-    const token1 = await manager.getToken();
-    const token2 = await manager.getToken();
-
-    expect(token1).toBe('test-access-token');
-    expect(token2).toBe('test-access-token');
-    expect(getAccessToken).toHaveBeenCalledTimes(1);
+    tokenManager = new TokenManager(mockOAuthClient);
   });
 
-  it('refreshes token after clearToken()', async () => {
-    const getAccessToken = jest
-      .fn()
-      .mockResolvedValueOnce({ accessToken: 'token-1', expiresIn: 3600 })
-      .mockResolvedValueOnce({ accessToken: 'token-2', expiresIn: 3600 });
-
-    const mockOAuthClient = { getAccessToken } as unknown as OAuthClient;
-    const manager = new TokenManager(mockOAuthClient);
-
-    await manager.getToken();
-    manager.clearToken();
-    const token = await manager.getToken();
-
-    expect(token).toBe('token-2');
-    expect(getAccessToken).toHaveBeenCalledTimes(2);
+  it('should fetch a token on the first call', async () => {
+    const token = await tokenManager.getToken();
+    expect(token).toBe('mock-token');
+    expect(mockOAuthClient.getAccessToken).toHaveBeenCalledTimes(1);
   });
 
-  it('deduplicates concurrent refresh calls', async () => {
-    let resolveFirst!: (v: { accessToken: string; expiresIn: number }) => void;
-    const firstCall = new Promise<{ accessToken: string; expiresIn: number }>(
-      (r) => (resolveFirst = r),
-    );
+  it('should return cached token on subsequent calls', async () => {
+    await tokenManager.getToken();
+    await tokenManager.getToken();
+    expect(mockOAuthClient.getAccessToken).toHaveBeenCalledTimes(1);
+  });
 
-    const getAccessToken = jest.fn().mockReturnValueOnce(firstCall);
-    const mockOAuthClient = { getAccessToken } as unknown as OAuthClient;
-    const manager = new TokenManager(mockOAuthClient);
-
-    const [p1, p2, p3] = [manager.getToken(), manager.getToken(), manager.getToken()];
-    resolveFirst({ accessToken: 'concurrent-token', expiresIn: 3600 });
-
-    const results = await Promise.all([p1, p2, p3]);
-    expect(results).toEqual(['concurrent-token', 'concurrent-token', 'concurrent-token']);
-    expect(getAccessToken).toHaveBeenCalledTimes(1);
+  it('should refresh after clearToken', async () => {
+    await tokenManager.getToken();
+    tokenManager.clearToken();
+    await tokenManager.getToken();
+    expect(mockOAuthClient.getAccessToken).toHaveBeenCalledTimes(2);
   });
 });

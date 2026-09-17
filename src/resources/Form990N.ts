@@ -3,6 +3,7 @@ import { HttpClient } from '../http/HttpClient';
 import type {
   ApiResponse,
   CreatePayload,
+  UpdatePayload,
   ErrorRecord,
   GetSuccessRecord,
   PDFResponse,
@@ -17,10 +18,6 @@ import type {
 export class Form990N {
   constructor(private readonly http: HttpClient) {}
 
-  /**
-   * POST /v1/form990n/create
-   * Supports idempotency via optional idempotencyKey.
-   */
   async create(
     payload: CreatePayload,
     idempotencyKey?: string,
@@ -31,7 +28,6 @@ export class Form990N {
     });
   }
 
-  /** Alias for create — matches client.form990n.submit() */
   async submit(
     payload: CreatePayload,
     idempotencyKey?: string,
@@ -39,14 +35,12 @@ export class Form990N {
     return this.create(payload, idempotencyKey);
   }
 
-  /** POST /v1/form990n/update */
   async update(
-    payload: import('../types/form990n.types').UpdatePayload,
+    payload: UpdatePayload,
   ): Promise<ApiResponse<SuccessRecord, ErrorRecord>> {
     return this.http.post('/v1/form990n/update', payload);
   }
 
-  /** GET /v1/form990n/get */
   async get(params: {
     SubmissionId: string;
     RecordId?: string;
@@ -57,7 +51,6 @@ export class Form990N {
     });
   }
 
-  /** GET /v1/form990n/list — at least one of SubmissionId or BusinessId required */
   async list(params: {
     SubmissionId?: string;
     BusinessId?: string;
@@ -68,7 +61,6 @@ export class Form990N {
     });
   }
 
-  /** DELETE /v1/form990n/delete */
   async delete(params: {
     SubmissionId: string;
     RecordId?: string;
@@ -79,7 +71,6 @@ export class Form990N {
     });
   }
 
-  /** GET /v1/form990n/validate */
   async validate(params: {
     SubmissionId: string;
     RecordIds: string | string[];
@@ -93,14 +84,12 @@ export class Form990N {
     });
   }
 
-  /** POST /v1/form990n/transmit */
   async transmit(
     payload: TransmitPayload,
   ): Promise<ApiResponse<TransmitSuccessRecord, TransmitErrorRecord>> {
     return this.http.post('/v1/form990n/transmit', payload);
   }
 
-  /** GET /v1/form990n/getPDF */
   async getPDF(params: {
     SubmissionId: string;
     RecordIds?: string | string[];
@@ -114,7 +103,6 @@ export class Form990N {
     });
   }
 
-  /** GET /v1/form990n/status */
   async status(params: {
     SubmissionId: string;
     RecordIds?: string | string[];

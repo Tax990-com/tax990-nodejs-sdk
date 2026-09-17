@@ -1,13 +1,8 @@
 import { OAuthClient } from './OAuthClient';
 import type { StoredToken } from '../types/auth.types';
 
-/** Buffer in ms before expiry to trigger a refresh (30 seconds) */
 const EXPIRY_BUFFER_MS = 30_000;
 
-/**
- * Holds the current access token and refreshes it automatically
- * before it expires. Token expiry is 3600s per ANALYSIS.md.
- */
 export class TokenManager {
   private token: StoredToken | null = null;
   private refreshPromise: Promise<StoredToken> | null = null;
@@ -26,7 +21,6 @@ export class TokenManager {
   }
 
   private async refresh(): Promise<StoredToken> {
-    // Deduplicate concurrent refresh calls
     if (this.refreshPromise) return this.refreshPromise;
 
     this.refreshPromise = this.oauthClient
@@ -46,7 +40,6 @@ export class TokenManager {
     return this.refreshPromise;
   }
 
-  /** Force-clear the cached token (useful in tests) */
   clearToken(): void {
     this.token = null;
   }

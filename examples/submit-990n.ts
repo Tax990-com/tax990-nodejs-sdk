@@ -1,39 +1,31 @@
-/**
- * Example: Submit a Form 990-N (e-Postcard) filing
- *
- * Run:
- *   TAX990_CLIENT_ID=xxx TAX990_CLIENT_SECRET=xxx TAX990_USER_TOKEN=xxx \
- *   npx ts-node examples/submit-990n.ts
- */
-
 import { Tax990Client } from '../src';
 
-const client = new Tax990Client({
-  clientId: process.env.TAX990_CLIENT_ID ?? '',
-  clientSecret: process.env.TAX990_CLIENT_SECRET ?? '',
-  userToken: process.env.TAX990_USER_TOKEN ?? '',
-  environment: (process.env.TAX990_ENVIRONMENT as 'production' | 'sandbox') ?? 'sandbox',
-});
-
 async function main() {
-  const result = await client.form990n.submit({
+  const client = new Tax990Client({
+    clientId: process.env.TAX990_CLIENT_ID!,
+    clientSecret: process.env.TAX990_CLIENT_SECRET!,
+    userToken: process.env.TAX990_USER_TOKEN!,
+    environment: 'sandbox',
+  });
+
+  const result = await client.form990n.create({
     Form990NRecords: [
       {
         Business: {
           BusinessId: null,
-          BusinessNm: 'Example Nonprofit Organization',
-          EIN: '12-3456789',
+          BusinessNm: 'Example Nonprofit',
+          EIN: '123456789',
           DBANm: null,
           InCareOfNm: null,
-          EmailAddress: 'contact@example-nonprofit.org',
-          Phone: '5125550100',
+          EmailAddress: 'contact@example.org',
+          Phone: '5551234567',
           IsForeign: false,
           USAddress: {
-            Address1: '100 Congress Ave',
-            Address2: 'Suite 200',
-            City: 'Austin',
-            State: 'TX',
-            ZipCd: '78701',
+            Address1: '123 Main St',
+            Address2: null,
+            City: 'Springfield',
+            State: 'IL',
+            ZipCd: '62701',
           },
           ForeignAddress: null,
         },
@@ -45,16 +37,16 @@ async function main() {
           TaxPeriodEndDt: '2024-12-31',
           IsGrossReceiptsUnder50K: true,
           IsOrganizationTerminated: false,
-          WebsiteAddress: 'https://example-nonprofit.org',
+          WebsiteAddress: 'https://example.org',
           PrincipalOfficer: {
-            OfficerNm: 'Jane Smith',
+            OfficerNm: 'Jane Doe',
             IsForeign: false,
             USAddress: {
-              Address1: '100 Congress Ave',
+              Address1: '456 Oak Ave',
               Address2: null,
-              City: 'Austin',
-              State: 'TX',
-              ZipCd: '78701',
+              City: 'Springfield',
+              State: 'IL',
+              ZipCd: '62701',
             },
             ForeignAddress: null,
           },
@@ -63,21 +55,8 @@ async function main() {
     ],
   });
 
-  console.log('Submission ID:', result.SubmissionId);
-  console.log('Status:', result.StatusNm);
-
-  const success = result.Form990NRecords?.SuccessRecords ?? [];
-  const errors = result.Form990NRecords?.ErrorRecords ?? [];
-
-  for (const rec of success) {
-    console.log(`  ✓ Record ${rec.SequenceId}: ${rec.RecordStatus} — RecordId: ${rec.RecordId}`);
-  }
-  for (const rec of errors) {
-    console.error(`  ✗ Record ${rec.SequenceId}: ${rec.Errors.map((e) => e.Message).join(', ')}`);
-  }
+  console.log('SubmissionId:', result.SubmissionId);
+  console.log('Records:', JSON.stringify(result.Form990NRecords, null, 2));
 }
 
-main().catch((err) => {
-  console.error('Error:', err.message);
-  process.exit(1);
-});
+main().catch(console.error);

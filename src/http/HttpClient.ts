@@ -31,10 +31,10 @@ export class HttpClient {
     this.client = axios.create({
       baseURL: options.baseUrl,
       timeout: options.timeout ?? 30000,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {},
     });
 
-    axiosRetry(this.client, {
+    axiosRetry(this.client as any, {
       retries: 3,
       retryDelay: axiosRetry.exponentialDelay,
       retryCondition: (err) =>
@@ -73,7 +73,7 @@ export class HttpClient {
   ): Promise<T> {
     try {
       const headers = await this.buildHeaders(extraHeaders);
-      const res = await this.client.post<T>(path, body, { headers });
+      const res = await this.client.post<T>(path, body, { headers: { 'Content-Type': 'application/json', ...headers } });
       return res.data;
     } catch (err) {
       throw mapError(err);
@@ -128,13 +128,17 @@ function mapError(err: unknown): never {
     const message =
       data?.StatusMessage ?? data?.message ?? axErr.message ?? 'Unknown error';
 
-    if (statusCode === 401) throw new AuthError(message, correlationId);
-    if (statusCode === 404) throw new NotFoundError(message, correlationId);
-    if (statusCode === 429) throw new RateLimitError(message, correlationId);
-    if (statusCode === 400 && data?.Errors?.length) {
-      throw new ValidationError(message, data.Errors, correlationId);
+    let sdkErr: Tax990Error;
+    if (statusCode === 401) sdkErr = new AuthError(message, correlationId);
+    else if (statusCode === 404) sdkErr = new NotFoundError(message, correlationId);
+    else if (statusCode === 429) sdkErr = new RateLimitError(message, correlationId);
+    else if (statusCode === 400 && data?.Errors?.length) {
+      sdkErr = new ValidationError(message, data.Errors, correlationId);
+    } else {
+      sdkErr = new Tax990Error(message, String(statusCode), statusCode, correlationId);
     }
-    throw new Tax990Error(message, String(statusCode), statusCode, correlationId);
+    (sdkErr as any).responseData = data;
+    throw sdkErr;
   }
   throw err;
 }

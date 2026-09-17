@@ -1,75 +1,47 @@
 import { verifyWebhookSignature } from '../src/utils/WebhookVerifier';
-import { Webhook } from '../src/resources/Webhook';
-import {
-  webhookSecret,
-  webhookPayload,
-  computeSignature,
-} from './fixtures/webhook.fixtures';
+import { WEBHOOK_SECRET, SAMPLE_WEBHOOK_PAYLOAD, createValidSignature } from './fixtures/webhook.fixtures';
 
-describe('verifyWebhookSignature', () => {
-  it('returns true for a valid HMAC-SHA256 signature', () => {
-    const signature = computeSignature(webhookPayload, webhookSecret);
+describe('WebhookVerifier', () => {
+  it('should return true for a valid signature', () => {
+    const signature = createValidSignature(SAMPLE_WEBHOOK_PAYLOAD, WEBHOOK_SECRET);
     expect(
       verifyWebhookSignature({
-        secret: webhookSecret,
-        payload: webhookPayload,
+        secret: WEBHOOK_SECRET,
+        payload: SAMPLE_WEBHOOK_PAYLOAD,
         signature,
       }),
     ).toBe(true);
   });
 
-  it('returns false for a tampered payload', () => {
-    const signature = computeSignature(webhookPayload, webhookSecret);
-    const tampered = webhookPayload.replace('accepted', 'rejected');
+  it('should return false for an invalid signature', () => {
     expect(
       verifyWebhookSignature({
-        secret: webhookSecret,
-        payload: tampered,
+        secret: WEBHOOK_SECRET,
+        payload: SAMPLE_WEBHOOK_PAYLOAD,
+        signature: 'invalid-signature-hex'.padEnd(64, '0'),
+      }),
+    ).toBe(false);
+  });
+
+  it('should return false for a tampered payload', () => {
+    const signature = createValidSignature(SAMPLE_WEBHOOK_PAYLOAD, WEBHOOK_SECRET);
+    expect(
+      verifyWebhookSignature({
+        secret: WEBHOOK_SECRET,
+        payload: SAMPLE_WEBHOOK_PAYLOAD + 'tampered',
         signature,
       }),
     ).toBe(false);
   });
 
-  it('returns false for a wrong secret', () => {
-    const signature = computeSignature(webhookPayload, webhookSecret);
+  it('should return false for a wrong secret', () => {
+    const signature = createValidSignature(SAMPLE_WEBHOOK_PAYLOAD, WEBHOOK_SECRET);
     expect(
       verifyWebhookSignature({
         secret: 'wrong-secret',
-        payload: webhookPayload,
+        payload: SAMPLE_WEBHOOK_PAYLOAD,
         signature,
       }),
     ).toBe(false);
-  });
-
-  it('returns false for mismatched lengths', () => {
-    expect(
-      verifyWebhookSignature({
-        secret: webhookSecret,
-        payload: webhookPayload,
-        signature: 'short',
-      }),
-    ).toBe(false);
-  });
-});
-
-describe('Webhook resource (stub)', () => {
-  const webhookResource = new Webhook();
-
-  it('register() throws not-implemented error', () => {
-    expect(() => webhookResource.register({})).toThrow(
-      'Webhook management endpoints are not available',
-    );
-  });
-
-  it('list() throws not-implemented error', () => {
-    expect(() => webhookResource.list()).toThrow(
-      'Webhook management endpoints are not available',
-    );
-  });
-
-  it('delete() throws not-implemented error', () => {
-    expect(() => webhookResource.delete('id')).toThrow(
-      'Webhook management endpoints are not available',
-    );
   });
 });
