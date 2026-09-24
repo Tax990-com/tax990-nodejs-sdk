@@ -6,7 +6,6 @@ import { Organization } from './resources/Organization';
 import { FilingStatus } from './resources/FilingStatus';
 import { Utility } from './resources/Utility';
 import { Nonprofits } from './resources/Nonprofits';
-import { Webhook } from './resources/Webhook';
 import type { Tax990ClientConfig } from './types/auth.types';
 
 export type { Tax990ClientConfig };
@@ -20,7 +19,6 @@ export class Tax990Client {
   readonly filingStatus: FilingStatus;
   readonly utility: Utility;
   readonly nonprofits: Nonprofits;
-  readonly webhooks: Webhook;
 
   constructor(config: Tax990ClientConfig) {
     const apiUrl = config.apiUrl ?? process.env.TAX990_API_URL ?? '';
@@ -45,6 +43,5 @@ export class Tax990Client {
     this.filingStatus = new FilingStatus(apiHttp);
     this.utility = new Utility(apiHttp);
     this.nonprofits = new Nonprofits(apiHttp);
-    this.webhooks = new Webhook();
   }
 }

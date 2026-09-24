@@ -75,14 +75,10 @@ export interface StructuredError {
 }
 
 export type RecordStatus =
-  | 'Created'
-  | 'Updated'
-  | 'Deleted'
-  | 'Transmitted'
-  | 'Accepted'
-  | 'Rejected'
-  | 'In-Progress'
-  | 'Failed';
+  | 'CREATED'
+  | 'TRANSMITTED'
+  | 'ACCEPTED'
+  | 'REJECTED';
 
 export interface RejectionError {
   ErrorCode: string | null;
@@ -183,7 +179,7 @@ export interface PDFResponse {
 }
 
 export enum FilingStatusId {
-  INPROGRESS = 1,
+  CREATED = 1,
   TRANSMITTED = 2,
   ACCEPTED = 3,
   REJECTED = 4,

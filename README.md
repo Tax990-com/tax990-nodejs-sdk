@@ -129,9 +129,8 @@ Health checks and cross-reference ID lookups.
 |---|---|---|
 | `getOrganizationDetailsByEIN(params)` | `GET /v1/nonprofits/getOrganizationDetailsByEIN` | Look up nonprofit organization details by EIN |
 
-Also available: `client.organizations` (business-entity queries over the same Form 990-N data),
-`client.filingStatus` (a status-only convenience wrapper), and `client.webhooks` (stub — webhook
-endpoints are not yet live on the Public API).
+Also available: `client.organizations` (business-entity queries over the same Form 990-N data) and
+`client.filingStatus` (a status-only convenience wrapper).
 
 ## Environment Variables
 
@@ -142,8 +141,8 @@ Set these in `nodejs/.env` (loaded automatically via `dotenv`) or export them in
 | `TAX990_CLIENT_ID` | ✅ | OAuth client identifier |
 | `TAX990_CLIENT_SECRET` | ✅ | OAuth client secret, used to sign the JWS |
 | `TAX990_USER_TOKEN` | ✅ | OAuth audience token for this client |
-| `TAX990_API_URL` | ✅ | Public API base URL (e.g. `https://api.tax990.com`) |
-| `TAX990_OAUTH_URL` | ✅ | OAuth API base URL (e.g. `https://oauth.tax990.com`) |
+| `TAX990_API_URL` | ✅ | Public API base URL — production: `https://api.tax990.com`, sandbox: `https://api-sandbox.tax990.com` |
+| `TAX990_OAUTH_URL` | ✅ | OAuth base URL — production: `https://oauth.tax990.com`, sandbox: `https://oauth-sandbox.tax990.com` |
 
 `Tax990ClientConfig.apiUrl` / `oauthUrl` can be passed directly to override the env vars at the
 call site.
